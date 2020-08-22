@@ -9,7 +9,7 @@ TEST      :=  -lcunit
 LIBRARIES =
 INCLUDES  =
 
-CFLAGS    += $(WARNINGS) -std=c11
+CFLAGS    += $(DEBUG) $(WARNINGS) -std=c11
 LDFLAGS   += $(LIBRARIES)
 
 
@@ -32,24 +32,16 @@ OUT       := fs_test
 # TARGET-DEPENDENT CHECKS
 # ******************************************************************************
 
-# If target is DEBUG
-ifeq ($(filter debug,$(MAKECMDGOALS)),debug)
-	CFLAGS += -ggdb
-	OUT    := fs_test_debug
-endif
-
 # ******************************************************************************
 # PHONY
 # ******************************************************************************
-.PHONY: all prepare debug print obj clean run
+.PHONY: all prepare print obj clean run
 
 
 # ******************************************************************************
 # COMPILATION
 # ******************************************************************************
 all: out
-
-debug: all
 
 out: $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(OUTDIR)/$(OUT) $^ $(LDFLAGS)

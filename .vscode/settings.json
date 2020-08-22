@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.mcmeta": "json",
+        "cstdlib": "c",
+        "stdint.h": "c"
+    }
+}

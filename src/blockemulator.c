@@ -88,7 +88,7 @@ bool block_create( size_t blocks, size_t block_size )
  * ***************************************************************************
  */
 void block_free( void )
-{  
+{
     free( blockdata.p_buffer );
     blockdata.block_size = 0;
     blockdata.blocks     = 0;
@@ -128,21 +128,22 @@ bool block_read( uint32_t address, uint32_t size, void *pData )
  */
 bool block_erase( uint32_t address, uint32_t size )
 {
-    size_t   erase_size  = size;
-    uint32_t _address    = address;
+    size_t   _size       = size;    // Size left to erase
+    uint32_t _address    = address; // Current addres to erase from
 
-    while( erase_size > 0 )
+    while( _size > 0 )
     {
         // What we actually erase
-        uint32_t block_addr = get_block( address );
+        uint32_t block_addr = get_block( _address );
         void *p_real_addr   = virtual_address_to_real( (uint32_t)block_addr );
         memset( (char *)p_real_addr, 0xFF, blockdata.block_size );
 
         // What we erase in the requested address range
         // Minimum of full block size and from given address to end of block
-        uint32_t erased = min( blockdata.block_size, ( address % blockdata.block_size ) );
-        erase_size = ( erase_size <= erased ) ? 0 : ( erase_size - erased );
-        _address += blockdata.block_size;
+        uint32_t block_offset = ( _address % blockdata.block_size ); // Offset of _address into block
+        uint32_t erased       = block_offset > 0 ? blockdata.block_size-block_offset : blockdata.block_size;
+        _size = ( _size <= erased ) ? 0 : ( _size - erased );
+        _address += erased;
     }
 
     return true;

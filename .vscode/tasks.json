@@ -2,42 +2,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "all",
+            "label": "build",
             "type": "shell",
             "command": "make",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
-            "label": "debug",
-            "type": "shell",
-            "command": "make debug",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": "build"
-        },
-        {
-            "type": "shell",
-            "label": "C/C++: gcc.exe build active file",
-            "command": "C:\\Strawberry\\c\\bin\\gcc.exe",
-            "args": [
-                "-g",
-                "${file}",
-                "-o",
-                "${fileDirname}\\${fileBasenameNoExtension}.exe"
-            ],
             "options": {
                 "cwd": "${workspaceFolder}"
             },

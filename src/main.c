@@ -6,10 +6,12 @@
 #define BLOCKS     10
 #define BLOCK_SIZE 16
 
-void print_all( size_t blocks, size_t blocksize )
+#define print_all(A,B) (print_blocks(A,B,__LINE__,__FILE__))
+
+void print_blocks( size_t blocks, size_t blocksize, uint32_t line, char *file )
 {
     uint8_t* p_buffer = malloc( blocksize );
-
+    printf( "%s:%u\n", file, line );
     for ( size_t i = 0; i < blocks * blocksize; ++i )
     {
         if ( ( i > 0 ) && ( i % 16 == 0 ) )
@@ -41,16 +43,31 @@ int main( int argc, char** argv )
 
     char *first  = "ABCDEFGHIJKLMNOP";
     char *second = "QRSTUVWXYZ012345";
-    block_write( 0, 16, first );
+    char *yzy    = "YZYZYZYZYZYZYZYZ";
+    char *zyz    = "ZYZYZYZYZYZYZYZY";
+
+    block_write( 0*BLOCK_SIZE, 16, first );
     print_all( BLOCKS, BLOCK_SIZE );
-    block_write( 16, 16, second );
+    block_write( 1*BLOCK_SIZE, 16, second );
     print_all( BLOCKS, BLOCK_SIZE );
-    block_write( 32, 16, first );
-    block_write( 32, 16, second );
-    block_write( 32, 16, first );
+    block_write( 2*BLOCK_SIZE, 16, yzy );
+    print_all( BLOCKS, BLOCK_SIZE );
+    block_write( 3*BLOCK_SIZE, 16, zyz );
     print_all( BLOCKS, BLOCK_SIZE );
 
-    block_erase( 0, 2 );
+    block_write( 4*BLOCK_SIZE, 16, first );
+    block_write( 4*BLOCK_SIZE, 16, second );
+    print_all( BLOCKS, BLOCK_SIZE );
+
+
+    block_write( 5*BLOCK_SIZE, 16, yzy );
+    block_write( 5*BLOCK_SIZE, 16, zyz );
+    print_all( BLOCKS, BLOCK_SIZE );
+
+    block_erase( 0*BLOCK_SIZE, 2 );
+    print_all( BLOCKS, BLOCK_SIZE );
+
+    block_erase( 30, 5 );
     print_all( BLOCKS, BLOCK_SIZE );
 
 

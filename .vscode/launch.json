@@ -5,17 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "gcc.exe - Build and debug active file",
+            "name": "Strawberry GCC",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}\\bin\\${fileBasenameNoExtension}.exe",
+            "program": "${workspaceFolder}\\bin\\fs_test.exe",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            "miDebuggerPath": "C:\\MinGW\bin\\gdb.exe",
+            "miDebuggerPath": "C:\\Strawberry\\c\\bin\\gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -23,7 +23,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "C/C++: gcc.exe build active file"
+            "preLaunchTask": "build"
         }
     ]
 }

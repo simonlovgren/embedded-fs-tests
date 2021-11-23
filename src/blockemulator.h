@@ -22,10 +22,12 @@ typedef struct _block_device_s block_device_t;
  * @param  blocks
  *         Number of blocks to allocate
  * @param  block_size
- *         size of blocks
+ *         Size of blocks
+ * @param  start_address
+ *         Start address of block device.
  * @return Pointer to block memory device if ok, NULL otherwise.
  */
-block_device_t* block_create( size_t blocks, size_t block_size );
+block_device_t* block_create( size_t blocks, size_t block_size, uintptr_t start_address );
 
 /**
  * @brief  Free block device.

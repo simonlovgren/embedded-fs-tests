@@ -25,10 +25,10 @@
  */
 typedef struct _block_device_s
 {
-    size_t   blocks;
-    size_t   block_size;
-    size_t   start_address;
-    uint8_t* buffer[];
+    size_t    blocks;
+    size_t    block_size;
+    uintptr_t start_address;
+    uint8_t*  buffer[];
 } block_device_t;
 
 /**
@@ -37,9 +37,36 @@ typedef struct _block_device_s
  * ----------------------------------------------------------------------------
  */
 
+/**
+ * Validates a virtual address falls within range of block device.
+ * @param   p_device
+ *          Pointer to block device
+ * @param   virtual_address
+ *          Virtual address to validate.
+ * @returns true if valid, false if not.
+ */
+bool valid_virtual_address( block_device_t* p_device, uintptr_t virtual_address );
+
+/**
+ * Converts virtual (block device) address to real address.
+ * @param   p_device
+ *          Pointer to block device
+ * @param   virtual_address
+ *          Virtual address to convert to real address.
+ * @returns Pointer to where in the device data buffer the
+ *          virtual address points.
+ */
 void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_address );
 
-uintptr_t get_block( block_device_t* p_block, uintptr_t address );
+/**
+ * Get virtual address to start of block where given address redides.
+ * @param   p_device
+ *          Pointer to block device.
+ * @param   virtual_address
+ *          virtual address to get start of block for.
+ * @returns Pointer to start of block.
+ */
+uintptr_t get_block( block_device_t* p_device, uintptr_t virtual_address );
 
 /**
  * ----------------------------------------------------------------------------
@@ -58,16 +85,25 @@ uintptr_t get_block( block_device_t* p_block, uintptr_t address );
  * function
  * ***************************************************************************
  */
-block_device_t* block_create( size_t blocks, size_t block_size )
+block_device_t* block_create( size_t blocks, size_t block_size, uintptr_t start_address )
 {
+    // Basic sanity check
+    if ( block_size % 2 != 0 || start_address % block_size != 0 )
+    {
+        // block size not power of two OR
+        // start address not aligned on block size
+        return false;
+    }
+
     block_device_t* p_device = malloc( sizeof(block_device_t) + ( blocks * block_size ) );
     if ( NULL == p_device )
     {
         return NULL;
     }
     // Set up block device header/metadata
-    p_device->block_size  = block_size;
-    p_device->blocks      = blocks;
+    p_device->block_size    = block_size;
+    p_device->blocks        = blocks;
+    p_device->start_address = start_address;
     // Initiate blocks to erased state
     memset( (char *)p_device->buffer, ERASE_STATE, p_device->blocks * p_device->block_size );
 
@@ -94,7 +130,7 @@ void block_free( block_device_t* p_device )
  */
 bool block_write( block_device_t* p_device, uintptr_t address, size_t size, void *p_data )
 {
-    if( NULL == p_device)
+    if( NULL == p_device || !valid_virtual_address( p_device, address ) )
     {
         return false;
     }
@@ -113,7 +149,7 @@ bool block_write( block_device_t* p_device, uintptr_t address, size_t size, void
  */
 bool block_read( block_device_t* p_device, uintptr_t address, size_t size, void *p_data )
 {
-    if( NULL == p_device)
+    if( NULL == p_device || !valid_virtual_address( p_device, address ) )
     {
         return false;
     }
@@ -132,7 +168,7 @@ bool block_erase( block_device_t* p_device, uintptr_t address, size_t size )
     size_t    _size       = size;    // Size left to erase
     uintptr_t _address    = address; // Current addres to erase from
 
-    if( NULL == p_device)
+    if( NULL == p_device || !valid_virtual_address( p_device, address ) )
     {
         return false;
     }
@@ -181,10 +217,10 @@ bool block_erase_all( block_device_t* p_device )
  * function
  * ***************************************************************************
  */
-void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_address )
+bool valid_virtual_address( block_device_t* p_device, uintptr_t virtual_address )
 {
-    void *p_base_addr = &(p_device->buffer);
-    return ( (uint8_t*)p_base_addr + virtual_address );
+    return ( virtual_address >= p_device->start_address ) &&
+           ( virtual_address < ((p_device->block_size * p_device->blocks) + p_device->start_address ));
 }
 
 /**
@@ -192,7 +228,18 @@ void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_addre
  * function
  * ***************************************************************************
  */
-uintptr_t get_block( block_device_t* p_block, uintptr_t address )
+void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_address )
 {
-    return ( address / p_block->block_size ) * p_block->block_size;
+    void *p_base_addr = &(p_device->buffer);
+    return ( (uint8_t*)p_base_addr + ( virtual_address - p_device->start_address) );
+}
+
+/**
+ * ***************************************************************************
+ * function
+ * ***************************************************************************
+ */
+uintptr_t get_block( block_device_t* p_device, uintptr_t virtual_address )
+{
+    return ( virtual_address / p_device->block_size ) * p_device->block_size;
 }

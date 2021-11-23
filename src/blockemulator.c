@@ -17,17 +17,19 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+#define ERASE_STATE ( 0xFF )
 /**
  * ----------------------------------------------------------------------------
  * Types
  * ----------------------------------------------------------------------------
  */
-typedef struct
+typedef struct _block_device_s
 {
-    size_t  block_size;
-    size_t  blocks;
-    uint8_t *p_buffer;
-} block_data_t;
+    size_t   blocks;
+    size_t   block_size;
+    size_t   start_address;
+    uint8_t* buffer[];
+} block_device_t;
 
 /**
  * ----------------------------------------------------------------------------
@@ -35,20 +37,15 @@ typedef struct
  * ----------------------------------------------------------------------------
  */
 
-void *virtual_address_to_real( uint32_t virtual_address );
+void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_address );
 
-uint32_t get_block( uint32_t address );
+uintptr_t get_block( block_device_t* p_block, uintptr_t address );
 
 /**
  * ----------------------------------------------------------------------------
  * Variables
  * ----------------------------------------------------------------------------
  */
-static block_data_t blockdata = {
-    .block_size = 0,
-    .blocks     = 0,
-    .p_buffer   = NULL
-};
 
 /**
  * ----------------------------------------------------------------------------
@@ -61,25 +58,20 @@ static block_data_t blockdata = {
  * function
  * ***************************************************************************
  */
-bool block_create( size_t blocks, size_t block_size )
+block_device_t* block_create( size_t blocks, size_t block_size )
 {
-    if ( 0 != blockdata.block_size )
+    block_device_t* p_device = malloc( sizeof(block_device_t) + ( blocks * block_size ) );
+    if ( NULL == p_device )
     {
-        return false;
+        return NULL;
     }
+    // Set up block device header/metadata
+    p_device->block_size  = block_size;
+    p_device->blocks      = blocks;
+    // Initiate blocks to erased state
+    memset( (char *)p_device->buffer, ERASE_STATE, p_device->blocks * p_device->block_size );
 
-    blockdata.p_buffer = malloc( blocks * block_size );
-    if ( NULL == blockdata.p_buffer )
-    {
-        return false;
-    }
-    // Initiate blocks to 0xFF
-    memset( (char *)blockdata.p_buffer, 0xFF, blocks * block_size );
-
-    blockdata.blocks     = blocks;
-    blockdata.block_size = block_size;
-
-    return true;
+    return p_device;
 }
 
 /**
@@ -87,11 +79,12 @@ bool block_create( size_t blocks, size_t block_size )
  * function
  * ***************************************************************************
  */
-void block_free( void )
+void block_free( block_device_t* p_device )
 {
-    free( blockdata.p_buffer );
-    blockdata.block_size = 0;
-    blockdata.blocks     = 0;
+    if( NULL != p_device)
+    {
+        free( p_device );
+    }
 }
 
 /**
@@ -99,12 +92,16 @@ void block_free( void )
  * function
  * ***************************************************************************
  */
-bool block_write( uint32_t address, uint32_t size, void *pData )
+bool block_write( block_device_t* p_device, uintptr_t address, size_t size, void *p_data )
 {
-    void *p_address = virtual_address_to_real( address );
+    if( NULL == p_device)
+    {
+        return false;
+    }
+    void *p_address = virtual_address_to_real( p_device, address );
     for ( size_t i = 0; i < size; ++i )
     {
-        ((uint8_t *)p_address)[i] = ( ((uint8_t *)p_address)[i] & ((uint8_t*)pData)[i] );
+        ((uint8_t *)p_address)[i] = ( ((uint8_t *)p_address)[i] & ((uint8_t*)p_data)[i] );
     }
     return true;
 }
@@ -114,10 +111,14 @@ bool block_write( uint32_t address, uint32_t size, void *pData )
  * function
  * ***************************************************************************
  */
-bool block_read( uint32_t address, uint32_t size, void *pData )
+bool block_read( block_device_t* p_device, uintptr_t address, size_t size, void *p_data )
 {
-    void *p_address = virtual_address_to_real( address );
-    memcpy( pData, p_address, size );
+    if( NULL == p_device)
+    {
+        return false;
+    }
+    void *p_address = virtual_address_to_real( p_device, address );
+    memcpy( p_data, p_address, size );
     return true;
 }
 
@@ -126,26 +127,46 @@ bool block_read( uint32_t address, uint32_t size, void *pData )
  * function
  * ***************************************************************************
  */
-bool block_erase( uint32_t address, uint32_t size )
+bool block_erase( block_device_t* p_device, uintptr_t address, size_t size )
 {
-    size_t   _size       = size;    // Size left to erase
-    uint32_t _address    = address; // Current addres to erase from
+    size_t    _size       = size;    // Size left to erase
+    uintptr_t _address    = address; // Current addres to erase from
+
+    if( NULL == p_device)
+    {
+        return false;
+    }
 
     while( _size > 0 )
     {
         // What we actually erase
-        uint32_t block_addr = get_block( _address );
-        void *p_real_addr   = virtual_address_to_real( (uint32_t)block_addr );
-        memset( (char *)p_real_addr, 0xFF, blockdata.block_size );
+        size_t block_addr = get_block( p_device, _address );
+        void *p_real_addr   = virtual_address_to_real( p_device, block_addr );
+        memset( (char *)p_real_addr, ERASE_STATE, p_device->block_size );
 
         // What we erase in the requested address range
         // Minimum of full block size and from given address to end of block
-        uint32_t block_offset = ( _address % blockdata.block_size ); // Offset of _address into block
-        uint32_t erased       = block_offset > 0 ? blockdata.block_size-block_offset : blockdata.block_size;
+        size_t block_offset = ( _address % p_device->block_size ); // Offset of _address into block
+        size_t erased       = block_offset > 0 ? p_device->block_size-block_offset : p_device->block_size;
         _size = ( _size <= erased ) ? 0 : ( _size - erased );
         _address += erased;
     }
 
+    return true;
+}
+
+/**
+ * ***************************************************************************
+ * function
+ * ***************************************************************************
+ */
+bool block_erase_all( block_device_t* p_device )
+{
+    if( NULL == p_device)
+    {
+        return false;
+    }
+    memset( (char *)p_device->buffer, ERASE_STATE, p_device->blocks * p_device->block_size );
     return true;
 }
 
@@ -160,10 +181,10 @@ bool block_erase( uint32_t address, uint32_t size )
  * function
  * ***************************************************************************
  */
-void *virtual_address_to_real( uint32_t virtual_address )
+void *virtual_address_to_real( block_device_t* p_device, uintptr_t virtual_address )
 {
-    void *p_base_addr = blockdata.p_buffer;
-    return ( (char*)p_base_addr + virtual_address );
+    void *p_base_addr = &(p_device->buffer);
+    return ( (uint8_t*)p_base_addr + virtual_address );
 }
 
 /**
@@ -171,7 +192,7 @@ void *virtual_address_to_real( uint32_t virtual_address )
  * function
  * ***************************************************************************
  */
-uint32_t get_block( uint32_t address )
+uintptr_t get_block( block_device_t* p_block, uintptr_t address )
 {
-    return ( address / blockdata.block_size ) * blockdata.block_size;
+    return ( address / p_block->block_size ) * p_block->block_size;
 }
